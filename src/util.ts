@@ -18,6 +18,11 @@ export interface Executable {
 	execute(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<{ success: boolean, done: boolean }>;
 }
 
+export interface Task {
+	task: Executable;
+	while: ((bus: () => Bus) => boolean) | null;
+}
+
 // Delivers all "items" from "from" to "to"
 export interface TransferAction {
 	type: "transfer";
@@ -115,6 +120,7 @@ export const nearest = <T extends Point>(positions: T[], from: Point): T => posi
 
 /** Depends on all recipes being taken from the global recipes array, no newly created recipes will work */
 export const tierOfRecipe = (recipe: Recipe): number => recipes.findIndex(tier => tier.includes(recipe));
+export const tierOfComponent = (component: Component): number => recipes.findIndex(tier => tier.some(recipe => recipe.output === component));
 
 export const getAllDevices = <T extends Device>(
 	ns: NS,

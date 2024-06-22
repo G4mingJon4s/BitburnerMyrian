@@ -65,7 +65,7 @@ deliverW2 = Factory.when(...).if(noW2Available, produceW2).deliver(() => device,
 */
 
 import { NS } from "@ns";
-import { Executable } from "./util";
+import { Executable, Task } from "./util";
 import { Bus } from "./types";
 import { ContentReservation } from "./ContentReservation";
 
@@ -85,10 +85,7 @@ export class Routine implements Executable {
 		index: number;
 	}[] | null = null;
 
-	steps: {
-		task: Executable;
-		while: ((bus: () => Bus) => boolean) | null;
-	}[];
+	steps: Task[];
 	currentStep = 0;
 	isRunning = false;
 
@@ -98,7 +95,7 @@ export class Routine implements Executable {
 		possible: ((bus: () => Bus) => boolean) | null,
 		startPossible: ((bus: () => Bus) => boolean) | null,
 		cleanup: Executable | null,
-		steps: { task: Executable; while: ((bus: () => Bus) => boolean) | null }[],
+		steps: Task[],
 		reservations: (() => ({ deviceID: string; index: number }[] | null)) | null = null
 	) {
 		this.name = name;

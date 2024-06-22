@@ -2,7 +2,7 @@ import { Custom } from "./Custom";
 import { Job } from "./Job";
 import { Routine } from "./Routine";
 import { Battery, Bus, Component, ContainerDevice, Device, DeviceType, Reducer } from "./types";
-import { Action, Executable, Point } from "./util";
+import { Action, Executable, Point, Task } from "./util";
 
 export type SubRoutineInputs = Action | Executable | ((builder: RoutineBuilder) => RoutineBuilder);
 export class RoutineBuilder {
@@ -11,7 +11,7 @@ export class RoutineBuilder {
 	possibleFunc: ((bus: () => Bus) => boolean) | null = null;
 	startPossibleFunc: ((bus: () => Bus) => boolean) | null = null;
 	cleanupStep: Executable | null = null;
-	steps: { task: Executable; while: ((bus: () => Bus) => boolean) | null }[] = [];
+	steps: Task[] = [];
 
 	reservations: (() => ({ deviceID: string; index: number }[] | null)) | null = null;
 	
