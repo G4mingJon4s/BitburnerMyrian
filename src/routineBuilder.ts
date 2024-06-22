@@ -63,8 +63,11 @@ export class RoutineBuilder {
 		return this;
 	}
 
-	each<T>(values: IterableIterator<T>, routine: (context: T) => (builder: this) => RoutineBuilder) {
-		for (const item of values) routine(item)(this);
+	each<T>(values: IterableIterator<T>, routine: (context: T) => SubRoutineInputs) {
+		for (const item of values) this.steps.push({
+			while: null,
+			task: RoutineBuilder.evaluateRoutineInput(`${this.name}:each#${this.steps.length}`, routine(item))
+		});
 		return this;
 	}
 

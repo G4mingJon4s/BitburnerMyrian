@@ -1,7 +1,7 @@
 import { NS } from "@ns";
 import { getBus } from "./util";
 import { Component } from "./types";
-import { makeDeliverT0, makeDeliverT1, makeDeliverT2, makeDeliverT3, makeProduceT1, makeProduceT2, makeProduceT3, makeSetup, makeUpgrade } from "./routines";
+import { makeCharge, makeDeliverT0, makeDeliverT1, makeDeliverT2, makeDeliverT3, makeProduceT1, makeProduceT2, makeProduceT3, makeSetup, makeStoreT0, makeUpgrade } from "./routines";
 import { ContentReservation } from "./ContentReservation";
 import { recipes } from "./recipes";
 import { Routine } from "./Routine";
@@ -82,8 +82,14 @@ export async function main(ns: NS) {
 	};
 
 	const routines = [
+		makeCharge(ns),
 		makeSetup(ns),
 		makeUpgrade(ns),
+
+		// Fill storages
+		makeStoreT0(ns, Component.R0),
+		makeStoreT0(ns, Component.G0),
+		makeStoreT0(ns, Component.B0),
 
 		// T0
 		makeDeliverT0(ns, Component.R0),
@@ -141,4 +147,6 @@ export async function main(ns: NS) {
 	}
 }
 
-// ISSUE: T2 delivery from T1 to T2 not working
+// ISSUE: Not enough charge for one trip, cost too high
+// LIMITATION: Can only produce T3 or lower
+// LIMITATION: Only one bus is used

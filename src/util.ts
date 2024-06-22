@@ -313,6 +313,13 @@ export const isRequestingItem = (device: OSocket, item: Component): boolean => {
 	return amountStored < amountRequested;
 };
 
+export const getItemSources = (ns: NS, item: Component, storages: string[]): ISocket[] | NCache[] => {
+	const isockets = getAllDevices(ns, isDeviceISocket, d => d.content.includes(item));
+	const available = storages.filter(storage => ns.myrian.getDevice(storage) !== undefined && getCache(ns, storage).content.includes(item)).map(storage => getCache(ns, storage));
+	if (available.length > 0) return available;
+	return isockets;
+};
+
 export const hashOS = (os: Point[]): number => os.reduce((hash, point) => {
 	for (let bit = 0; bit < 8; bit++) {
 		const inputBit = (((point.x & 0xF) << 4) | (point.y & 0xF)) >> bit & 1;
