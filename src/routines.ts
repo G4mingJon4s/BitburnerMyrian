@@ -1,7 +1,7 @@
 import { NS } from "@ns";
 import { Component, DeviceType, Glitch, Recipe } from "./types";
 import { countUp, getAllDevices, getBattery, getCache, getItemSources, getReducer, isDeviceISocket, isDeviceOSocket, isRequestingItem, Point } from "./util";
-import { RoutineBuilder } from "./routineBuilder";
+import { RoutineBuilder } from "./RoutineBuilder";
 import { Routine } from "./Routine";
 
 export const storages = new Map<string, Point>([
@@ -24,7 +24,7 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		ns.myrian.getDevices,
 		"batteryA",
 		DeviceType.Battery,
-		{ x: 2, y: 5 }
+		{ x: 6, y: 6 }
 	))
 	.custom(() => ns.myrian.getDevice("batteryA") !== undefined, async () => await ns.myrian.setGlitchLvl(Glitch.Magnetism, 1))
 	.each(storages.entries(), storage => builder => builder.install(
@@ -86,10 +86,10 @@ export const makeCharge = (ns: NS) => new RoutineBuilder("charge")
 	.finish();
 
 export const makeUpgrade = (ns: NS) => new RoutineBuilder("upgrade")
-	// .while(bus => bus().maxEnergy < 26, builder => builder.custom(
-	// 	bus => ns.myrian.getUpgradeMaxEnergyCost(bus().name) <= ns.myrian.getVulns(),
-	// 	async bus => void ns.myrian.getUpgradeMaxEnergyCost(bus().name)
-	// ))
+	.while(bus => bus().maxEnergy < 20, builder => builder.custom(
+		bus => ns.myrian.getUpgradeMaxEnergyCost(bus().name) <= ns.myrian.getVulns(),
+		async bus => void ns.myrian.getUpgradeMaxEnergyCost(bus().name)
+	))
 	.custom(() => ns.myrian.getDevice("batteryA") !== undefined && ns.myrian.getUpgradeTierCost("batteryA") < ns.myrian.getVulns(), async () => void ns.myrian.upgradeTier("batteryA"))
 	.while(bus => bus().reduceLvl < 5, builder => builder.custom(
 		bus => ns.myrian.getUpgradeReduceLvlCost(bus().name) <= ns.myrian.getVulns(),
