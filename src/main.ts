@@ -27,7 +27,6 @@ export async function main(ns: NS) {
 	// }
 
 	await ns.myrian.setGlitchLvl(Glitch.Segmentation, 2);
-	await ns.myrian.setGlitchLvl(Glitch.Rust, 10);
 
 	// await (async() => {
 	// 	try {

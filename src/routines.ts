@@ -9,8 +9,8 @@ export const storages = {
 	"storageB": { x: 7, y: 2 },
 } as const;
 export const storageNames = Array.from(Object.keys(storages));
-export const totalStorageSize = (ns: NS) => storageNames.reduce((sum, name) => sum + getCache(ns, name).maxContent, 0);
-export const numStored = (ns: NS, item: Component) => storageNames.reduce((sum, name) => sum + getCache(ns, name).content.filter(c => c === item).length, 0);
+export const totalStorageSize = (ns: NS) => storageNames.filter(storage => ns.myrian.getDevice(storage) !== undefined).reduce((sum, name) => sum + getCache(ns, name).maxContent, 0);
+export const numStored = (ns: NS, item: Component) => storageNames.filter(storage => ns.myrian.getDevice(storage) !== undefined).reduce((sum, name) => sum + getCache(ns, name).content.filter(c => c === item).length, 0);
 
 export const reducers = {
 	"reducerT1": { x: 4, y: 5, tier: 1 },
