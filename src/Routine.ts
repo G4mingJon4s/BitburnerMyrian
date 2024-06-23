@@ -107,10 +107,16 @@ export class Routine implements Executable {
 		this.steps = steps;
 	}
 
-	private nextStep() {
+	private nextStep(callStack: Executable[]) {
 		const increment = this.currentStep + 1;
 		const isDone = increment >= this.steps.length;
 		this.currentStep = increment % this.steps.length;
+
+		if (isDone) {
+			this.release(callStack);
+			this.isRunning = false;
+		}
+
 		return isDone;
 	}
 
@@ -180,8 +186,9 @@ export class Routine implements Executable {
 		const step = this.steps[this.currentStep]!;
 		this.isRunning = true;
 
-		if (step.while !== null && !step.while(bus)) {
-			const isDone = this.nextStep();
+		// Only skip the task if it is not running and shouldn't be run due to the while clause
+		if ((!(step.task instanceof Routine) || !step.task.isRunning) && step.while !== null && !step.while(bus)) {
+			const isDone = this.nextStep(callStack);
 			console.log(`${"-".repeat(callStack.length)}FINISHED ${this.name}, while clause not met.`);
 			return { success: true, done: isDone };
 		}
@@ -191,11 +198,7 @@ export class Routine implements Executable {
 			if (result.success) {
 				console.log(`${"-".repeat(callStack.length)}FINISHED ${this.name}`);
 				let isDone = false;
-				if (result.done && (step.while === null || !step.while(bus))) isDone = this.nextStep();
-				if (isDone) {
-					this.release(callStack);
-					this.isRunning = false;
-				}
+				if (result.done && (step.while === null || !step.while(bus))) isDone = this.nextStep(callStack);
 
 				if (isDone) console.log(`${"-".repeat(callStack.length)}DONE ${this.name}`);
 
