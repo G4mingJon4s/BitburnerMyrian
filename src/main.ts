@@ -1,17 +1,17 @@
 import { NS } from "@ns";
-import { getBus } from "./util";
+import { getBus, tierOfComponent } from "./util";
 import { Component } from "./types";
-import { makeCharge, makeDeliverT0, makeDeliverT1, makeDeliverT2, makeDeliverT3, makeProduceT1, makeProduceT2, makeProduceT3, makeSetup, makeStoreT0, makeUpgrade } from "./routines";
+import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade } from "./routines";
 import { ContentReservation } from "./ContentReservation";
-import { recipes } from "./recipes";
 import { Routine } from "./Routine";
+import { componentRecipes, recipes } from "./recipes";
 
 export async function main(ns: NS) {
 	// Static values are not reset, so it is done manually
 	ContentReservation.reset();
 
 	ns.myrian.DEUBG_RESET();
-	// ns.myrian.DEBUG_GIVE_VULNS(3e16);
+	ns.myrian.DEBUG_GIVE_VULNS(100);
 
 	ns.disableLog("asleep");
 	ns.clearLog();
@@ -41,44 +41,25 @@ export async function main(ns: NS) {
 	// 	}
 	// })()
 
-	const t1ProduceRoutines: Partial<Record<Component, Routine>> = {
-		[Component.Y1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.Y1)!),
-		[Component.C1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.C1)!),
-		[Component.M1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.M1)!),
+	const t1ProduceRoutines: Partial<Record<Component, Routine>> = makeAll(
+		([Component.R1, Component.G1, Component.B1, Component.Y1, Component.C1, Component.M1] as const).values(),
+		item => makeProduce(ns, componentRecipes[item], {}),
+	);
 
-		[Component.R1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.R1)!),
-		[Component.G1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.G1)!),
-		[Component.B1]: makeProduceT1(ns, recipes[1].find(r => r.output === Component.B1)!),
-	}
+	const t2ProduceRoutines: Partial<Record<Component, Routine>> = makeAll(
+		([Component.R2, Component.G2, Component.B2, Component.Y2, Component.C2, Component.M2, Component.W2] as const).values(),
+		item => makeProduce(ns, componentRecipes[item], t1ProduceRoutines),
+	);
 
-	const t2ProduceRoutines: Partial<Record<Component, Routine>> = {
-		[Component.W2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.W2)!, t1ProduceRoutines),
-
-		[Component.Y2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.Y2)!, t1ProduceRoutines),
-		[Component.C2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.C2)!, t1ProduceRoutines),
-		[Component.M2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.M2)!, t1ProduceRoutines),
-
-		[Component.R2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.R2)!, t1ProduceRoutines),
-		[Component.G2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.G2)!, t1ProduceRoutines),
-		[Component.B2]: makeProduceT2(ns, recipes[2].find(r => r.output === Component.B2)!, t1ProduceRoutines),
-	}
-
-	const t3ProduceRoutines: Partial<Record<Component, Routine>> = {
-		[Component.W3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.W3)!, t2ProduceRoutines),
-
-		[Component.Y3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.Y3)!, t2ProduceRoutines),
-		[Component.C3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.C3)!, t2ProduceRoutines),
-		[Component.M3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.M3)!, t2ProduceRoutines),
-
-		[Component.R3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.R3)!, t2ProduceRoutines),
-		[Component.G3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.G3)!, t2ProduceRoutines),
-		[Component.B3]: makeProduceT3(ns, recipes[3].find(r => r.output === Component.B3)!, t2ProduceRoutines),
-	}
+	const t3ProduceRoutines: Partial<Record<Component, Routine>> = makeAll(
+		([Component.R3, Component.G3, Component.B3, Component.Y3, Component.C3, Component.M3, Component.W3] as const).values(),
+		item => makeProduce(ns, componentRecipes[item], t2ProduceRoutines),
+	);
 
 	const produceRoutines: Partial<Record<Component, Routine>> = {
 		...t1ProduceRoutines,
 		...t2ProduceRoutines,
-		...t3ProduceRoutines
+		...t3ProduceRoutines,
 	};
 
 	const routines = [
@@ -96,36 +77,32 @@ export async function main(ns: NS) {
 		makeDeliverT0(ns, Component.G0),
 		makeDeliverT0(ns, Component.B0),
 
-		// T1
-		makeDeliverT1(ns, Component.Y1, produceRoutines[Component.Y1]!),
-		makeDeliverT1(ns, Component.C1, produceRoutines[Component.C1]!),
-		makeDeliverT1(ns, Component.M1, produceRoutines[Component.M1]!),
+		// Higher tiers
+		...[
+			// Ordered after T0 components needed, lowest first
+			Component.Y1,
+			Component.C1,
+			Component.M1,
+			Component.R1,
+			Component.G1,
+			Component.B1,
 
-		makeDeliverT1(ns, Component.R1, produceRoutines[Component.R1]!),
-		makeDeliverT1(ns, Component.G1, produceRoutines[Component.G1]!),
-		makeDeliverT1(ns, Component.B1, produceRoutines[Component.B1]!),
+			Component.Y2,
+			Component.C2,
+			Component.M2,
+			Component.R2,
+			Component.G2,
+			Component.B2,
+			Component.W2,
 
-		// T2
-		makeDeliverT2(ns, Component.Y2, produceRoutines[Component.Y2]!),
-		makeDeliverT2(ns, Component.C2, produceRoutines[Component.C2]!),
-		makeDeliverT2(ns, Component.M2, produceRoutines[Component.M2]!),
-
-		makeDeliverT2(ns, Component.R2, produceRoutines[Component.R2]!),
-		makeDeliverT2(ns, Component.G2, produceRoutines[Component.G2]!),
-		makeDeliverT2(ns, Component.B2, produceRoutines[Component.B2]!),
-
-		makeDeliverT2(ns, Component.W2, produceRoutines[Component.W2]!),
-
-		// T3
-		makeDeliverT3(ns, Component.Y3, produceRoutines[Component.Y3]!),
-		makeDeliverT3(ns, Component.C3, produceRoutines[Component.C3]!),
-		makeDeliverT3(ns, Component.M3, produceRoutines[Component.M3]!),
-
-		makeDeliverT3(ns, Component.R3, produceRoutines[Component.R3]!),
-		makeDeliverT3(ns, Component.G3, produceRoutines[Component.G3]!),
-		makeDeliverT3(ns, Component.B3, produceRoutines[Component.B3]!),
-
-		makeDeliverT3(ns, Component.W3, produceRoutines[Component.W3]!),
+			Component.Y3,
+			Component.C3,
+			Component.M3,
+			Component.R3,
+			Component.G3,
+			Component.B3,
+			Component.W3,
+		].map(item => makeDeliver(ns, recipes[tierOfComponent(item)].find(recipe => recipe.output === item)!, produceRoutines)),
 	]
 
 	while (true) {
@@ -147,6 +124,6 @@ export async function main(ns: NS) {
 	}
 }
 
-// ISSUE: Not enough charge for one trip, cost too high
+// ISSUE: upgrade routine doesnt work (charge upgrade not working)
 // LIMITATION: Can only produce T3 or lower
 // LIMITATION: Only one bus is used

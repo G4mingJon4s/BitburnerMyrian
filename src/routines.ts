@@ -1,14 +1,28 @@
 import { NS } from "@ns";
 import { Component, DeviceType, Glitch, Recipe } from "./types";
-import { countUp, getAllDevices, getBattery, getCache, getItemSources, getReducer, isDeviceISocket, isDeviceOSocket, isRequestingItem, Point } from "./util";
+import { countUp, getAllDevices, getBattery, getCache, getItemSources, getReducer, isDeviceISocket, isDeviceOSocket, isRequestingItem, tierOfComponent } from "./util";
 import { RoutineBuilder } from "./RoutineBuilder";
 import { Routine } from "./Routine";
 
-export const storages = new Map<string, Point>([
-	["storageA", { x: 4, y: 2 }],
-	["storageB", { x: 7, y: 2 }],
-]);
-export const storageNames = Array.from(storages.keys());
+export const storages = {
+	"storageA": { x: 4, y: 2 },
+	"storageB": { x: 7, y: 2 },
+} as const;
+export const storageNames = Array.from(Object.keys(storages));
+
+export const reducers = {
+	"reducerT1": { x: 4, y: 5, tier: 1 },
+	"reducerT2": { x: 7, y: 5, tier: 2 },
+	"reducerT3": { x: 4, y: 8, tier: 3 },
+} as const;
+export const reducerNames = Array.from(Object.keys(reducers));
+export const reducerOfItem = (item: Component) => Object.entries(reducers).find(reducer => reducer[1].tier === tierOfComponent(item))?.[0];
+
+export const makeAll = <T extends string>(items: IterableIterator<T>, routine: (item: T) => Routine): Partial<Record<T, Routine>> => {
+	const result: Partial<Record<T, Routine>> = {};
+	for (const item of items) result[item] = routine(item);
+	return result;
+}
 
 export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 	.while(() => ns.myrian.getDevice("reducerT1") === undefined, builder => builder.install(
@@ -16,7 +30,7 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		ns.myrian.getDevices,
 		"reducerT1",
 		DeviceType.Reducer,
-		{ x: 4, y: 5 }
+		reducers["reducerT1"]
 	))
 	.custom(() => ns.myrian.getDevice("reducerT1") !== undefined, async () => await ns.myrian.setGlitchLvl(Glitch.Encryption, 1))
 	.while(() => ns.myrian.getDevice("batteryA") === undefined, builder => builder.install(
@@ -27,7 +41,7 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		{ x: 6, y: 6 }
 	))
 	.custom(() => ns.myrian.getDevice("batteryA") !== undefined, async () => await ns.myrian.setGlitchLvl(Glitch.Magnetism, 1))
-	.each(storages.entries(), storage => builder => builder.install(
+	.each(Object.entries(storages).values(), storage => builder => builder.install(
 		ns.myrian.getVulns,
 		ns.myrian.getDevices,
 		storage[0],
@@ -39,9 +53,9 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		ns.myrian.getDevices,
 		"reducerT2",
 		DeviceType.Reducer,
-		{ x: 7, y: 5 }
+		reducers["reducerT2"]
 	))
-	.while(() => getReducer(ns, "reducerT2").tier < 2, builder => builder.custom(
+	.while(() => getReducer(ns, "reducerT2").tier < reducers["reducerT2"].tier, builder => builder.custom(
 		() => ns.myrian.getDevice("reducerT2") !== undefined && ns.myrian.getUpgradeTierCost("reducerT2") <= ns.myrian.getVulns(),
 		async () => void ns.myrian.upgradeTier("reducerT2")
 	))
@@ -55,9 +69,9 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		ns.myrian.getDevices,
 		"reducerT3",
 		DeviceType.Reducer,
-		{ x: 4, y: 8 }
+		reducers["reducerT3"]
 	))
-	.while(() => getReducer(ns, "reducerT3").tier < 3, builder => builder.custom(
+	.while(() => getReducer(ns, "reducerT3").tier < reducers["reducerT3"].tier, builder => builder.custom(
 		() => ns.myrian.getDevice("reducerT3") !== undefined && ns.myrian.getUpgradeTierCost("reducerT3") <= ns.myrian.getVulns(),
 		async () => void ns.myrian.upgradeTier("reducerT3")
 	))
@@ -86,16 +100,16 @@ export const makeCharge = (ns: NS) => new RoutineBuilder("charge")
 	.finish();
 
 export const makeUpgrade = (ns: NS) => new RoutineBuilder("upgrade")
-	.while(bus => bus().maxEnergy < 20, builder => builder.custom(
+	.while(bus => bus().maxEnergy < 24, builder => builder.possible(() => ns.myrian.getGlitchLvl(Glitch.Magnetism) > 0).custom(
 		bus => ns.myrian.getUpgradeMaxEnergyCost(bus().name) <= ns.myrian.getVulns(),
-		async bus => void ns.myrian.getUpgradeMaxEnergyCost(bus().name)
+		async bus => void ns.myrian.upgradeMaxEnergy(bus().name)
 	))
-	.custom(() => ns.myrian.getDevice("batteryA") !== undefined && ns.myrian.getUpgradeTierCost("batteryA") < ns.myrian.getVulns(), async () => void ns.myrian.upgradeTier("batteryA"))
+	.custom(() => ns.myrian.getDevice("batteryA") !== undefined && getBattery(ns, "batteryA").tier < 2 && ns.myrian.getUpgradeTierCost("batteryA") < ns.myrian.getVulns(), async () => void ns.myrian.upgradeTier("batteryA"))
 	.while(bus => bus().reduceLvl < 5, builder => builder.custom(
 		bus => ns.myrian.getUpgradeReduceLvlCost(bus().name) <= ns.myrian.getVulns(),
 		async bus => void ns.myrian.upgradeReduceLvl(bus().name)
 	))
-	.each(storages.keys(), storage => builder => builder.possible(() => ns.myrian.getDevice(storage) !== undefined).while(
+	.each(storageNames.values(), storage => builder => builder.possible(() => ns.myrian.getDevice(storage) !== undefined).while(
 		() => getCache(ns, storage).maxContent < 3,
 		b => b.custom(
 			() => ns.myrian.getUpgradeMaxContentCost(storage) <= ns.myrian.getVulns(),
@@ -128,115 +142,53 @@ export const makeDeliverT0 = (ns: NS, item: Component) => new RoutineBuilder(`de
 	.cleanup(builder => builder.deleteContent(bus => bus()))
 	.finish();
 
-export const makeProduceT1 = (ns: NS, recipe: Recipe) => new RoutineBuilder(`produceT1: ${recipe.output}`)
-	.possible(() => ns.myrian.getDevice("reducerT1") !== undefined)
-	.startPossible(() => getReducer(ns, "reducerT1").content.length === 0)
-	.reserve(() => [{ deviceID: "reducerT1", index: 0 }, { deviceID: "reducerT1", index: 1 }])
-	.each(countUp(recipe.input).keys(), input => builder => builder.while(
-		() => {
-			const numInReducer = getReducer(ns, "reducerT1").content.filter(i => i === input).length;
-			return numInReducer < countUp(recipe.input).get(input)!;
-		},
-		b => b.deliver(
-			() => getItemSources(ns, input, storageNames),
-			() => [getReducer(ns, "reducerT1")],
-			[input]
+export function makeProduce(ns: NS, recipe: Recipe, produceRoutines: Partial<Record<Component, Routine>>) {
+	const reducer = reducerOfItem(recipe.output);
+	if (reducer === undefined) throw new Error(`No reducer for ${recipe.output}`);
+
+	return new RoutineBuilder(`produce: ${recipe.output}`)
+		.possible(() => ns.myrian.getDevice(reducer) !== undefined)
+		.startPossible(() => getReducer(ns, reducer).content.length === 0)
+		.reserve(() => [{ deviceID: reducer, index: 0 }, { deviceID: reducer, index: 1 }, { deviceID: reducer, index: 2 }])
+		.each(
+			countUp(recipe.input).entries(),
+			([item, count]) => builder => {
+				const subReducer = reducerOfItem(item);
+				return builder.while(
+					() => count > (countUp(getReducer(ns, reducer).content).get(item) ?? 0),
+					builder => {
+						if ([Component.R0, Component.G0, Component.B0].includes(item)) return builder.deliver(
+							() => getItemSources(ns, item, storageNames),
+							() => [getReducer(ns, reducer)],
+							[item]
+						);
+						return builder.while(
+							() => !getReducer(ns, subReducer!).content.includes(item),
+							produceRoutines[item]!
+						)
+					}
+				);
+			}
 		)
-	))
-	.reduce(() => [getReducer(ns, "reducerT1")], recipe.output)
-	.cleanup(builder => builder.deleteContent(() => getReducer(ns, "reducerT1")))
-	.finish();
+		.reduce(() => [getReducer(ns, reducer)], recipe.output)
+		.finish();
+}
 
-export const makeDeliverT1 = (ns: NS, item: Component, produceRoutine: Routine) => new RoutineBuilder(`deliverT1: ${item}`)
-	.when(() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)).length > 0)
-	.possible(() => ns.myrian.getDevice("reducerT1") !== undefined)
-	.while(() => !getReducer(ns, "reducerT1").content.includes(item), produceRoutine)
-	.deliver(
-		() => [getReducer(ns, "reducerT1")],
-		() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)),
-		[item]
-	)
-	.cleanup(builder => builder.deleteContent(bus => bus()))
-	.finish();
+export function makeDeliver(ns: NS, recipe: Recipe, produceRoutines: Partial<Record<Component, Routine>>) {
+	const reducer = reducerOfItem(recipe.output);
+	if (reducer === undefined) throw new Error(`No reducer for ${recipe.output}`);
+	const routine = produceRoutines[recipe.output];
+	if (routine === undefined) throw new Error(`No routine for ${recipe.output}`);
 
-export const makeProduceT2 = (ns: NS, recipe: Recipe, produceRoutines: Partial<Record<Component, Routine>>) => new RoutineBuilder(`produceT2: ${recipe.output}`)
-	.possible(() => ns.myrian.getDevice("reducerT2") !== undefined)
-	.startPossible(() => getReducer(ns, "reducerT2").content.length === 0)
-	.reserve(() => [{ deviceID: "reducerT2", index: 0 }, { deviceID: "reducerT2", index: 1 }, { deviceID: "reducerT2", index: 2 }])
-	.each(
-		countUp(recipe.input).keys(),
-		input => builder => builder.while(
-			() => countUp(recipe.input).get(input)! > (countUp(getReducer(ns, "reducerT2").content).get(input) ?? 0),
-			b => b.while(
-				() => !getReducer(ns, "reducerT1").content.includes(input),
-				produceRoutines[input] !== undefined
-					? produceRoutines[input]
-					: b => b.deliver(
-						() => getItemSources(ns, input, storageNames),
-						() => [getReducer(ns, "reducerT1")],
-						[input]
-					)
-			)
-			.deliver(
-				() => [getReducer(ns, "reducerT1")],
-				() => [getReducer(ns, "reducerT2")],
-				[input]
-			)
+	return new RoutineBuilder(`deliver: ${recipe.output}`)
+		.when(() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, recipe.output)).length > 0)
+		.possible(() => ns.myrian.getDevice(reducer) !== undefined)
+		.startPossible(() => getReducer(ns, reducer).content.length === 0)
+		.while(() => !getReducer(ns, reducer).content.includes(recipe.output), routine)
+		.deliver(
+			() => [getReducer(ns, reducer)],
+			() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, recipe.output)),
+			[recipe.output]
 		)
-	)
-	.reduce(() => [getReducer(ns, "reducerT2")], recipe.output)
-	.cleanup(builder => builder.deleteContent(() => getReducer(ns, "reducerT2")))
-	.finish();
-
-export const makeDeliverT2 = (ns: NS, item: Component, produceRoutine: Routine) => new RoutineBuilder(`deliverT2: ${item}`)
-	.when(() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)).length > 0)
-	.possible(() => ns.myrian.getDevice("reducerT2") !== undefined)
-	.while(() => !getReducer(ns, "reducerT2").content.includes(item), produceRoutine)
-	.deliver(
-		() => [getReducer(ns, "reducerT2")],
-		() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)),
-		[item]
-	)
-	.cleanup(builder => builder.deleteContent(bus => bus()))
-	.finish();
-
-export const makeProduceT3 = (ns: NS, recipe: Recipe, produceRoutines: Partial<Record<Component, Routine>>) => new RoutineBuilder(`produceT3: ${recipe.output}`)
-	.possible(() => ns.myrian.getDevice("reducerT3") !== undefined)
-	.startPossible(() => getReducer(ns, "reducerT3").content.length === 0)
-	.reserve(() => [{ deviceID: "reducerT3", index: 0 }, { deviceID: "reducerT3", index: 1 }, { deviceID: "reducerT3", index: 2 }])
-	.each(
-		countUp(recipe.input).keys(),
-		input => builder => builder.while(
-			() => countUp(recipe.input).get(input)! > (countUp(getReducer(ns, "reducerT3").content).get(input) ?? 0),
-			b => b.while(
-				() => !getReducer(ns, "reducerT2").content.includes(input),
-				produceRoutines[input] !== undefined
-					? produceRoutines[input]
-					: b => b.deliver(
-						() => getItemSources(ns, input, storageNames),
-						() => [getReducer(ns, "reducerT2")],
-						[input]
-					)
-			)
-			.deliver(
-				() => [getReducer(ns, "reducerT2")],
-				() => [getReducer(ns, "reducerT3")],
-				[input]
-			)
-		)
-	)
-	.reduce(() => [getReducer(ns, "reducerT3")], recipe.output)
-	.cleanup(builder => builder.deleteContent(() => getReducer(ns, "reducerT3")))
-	.finish();
-
-export const makeDeliverT3 = (ns: NS, item: Component, produceRoutine: Routine) => new RoutineBuilder(`deliverT3: ${item}`)
-	.when(() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)).length > 0)
-	.possible(() => ns.myrian.getDevice("reducerT3") !== undefined)
-	.while(() => !getReducer(ns, "reducerT3").content.includes(item), produceRoutine)
-	.deliver(
-		() => [getReducer(ns, "reducerT3")],
-		() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, item)),
-		[item]
-	)
-	.cleanup(builder => builder.deleteContent(bus => bus()))
-	.finish();
+		.finish();
+}
