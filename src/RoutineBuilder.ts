@@ -101,7 +101,7 @@ export class RoutineBuilder {
 		return this;
 	}
 
-	uninstall(device: (bus: () => Bus) => Device, devices: () => Device[]) {
+	uninstall(device: (bus: () => Bus) => Device[], devices: () => Device[]) {
 		this.steps.push({ task: new Job({ type: "uninstall", device, devices }), while: null });
 		return this;
 	}

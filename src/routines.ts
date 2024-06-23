@@ -1,6 +1,6 @@
 import { NS } from "@ns";
 import { Component, DeviceType, Glitch, Recipe } from "./types";
-import { countUp, getAllDevices, getBattery, getCache, getItemSources, getReducer, isDeviceISocket, isDeviceOSocket, isRequestingItem, tierOfComponent } from "./util";
+import { countUp, getAllDevices, getBattery, getCache, getItemSources, getReducer, isDeviceISocket, isDeviceLock, isDeviceOSocket, isRequestingItem, tierOfComponent } from "./util";
 import { RoutineBuilder } from "./RoutineBuilder";
 import { Routine } from "./Routine";
 
@@ -9,6 +9,8 @@ export const storages = {
 	"storageB": { x: 7, y: 2 },
 } as const;
 export const storageNames = Array.from(Object.keys(storages));
+export const totalStorageSize = (ns: NS) => storageNames.reduce((sum, name) => sum + getCache(ns, name).maxContent, 0);
+export const numStored = (ns: NS, item: Component) => storageNames.reduce((sum, name) => sum + getCache(ns, name).content.filter(c => c === item).length, 0);
 
 export const reducers = {
 	"reducerT1": { x: 4, y: 5, tier: 1 },
@@ -80,11 +82,14 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		async () => void ns.myrian.upgradeMaxContent("reducerT3")
 	))
 	.custom(() => ns.myrian.getDevice("reducerT3") !== undefined, async () => await ns.myrian.setGlitchLvl(Glitch.Encryption, 3))
-	.custom(() => ns.myrian.getGlitchLvl(Glitch.Virtualization) < 3, async () => await ns.myrian.setGlitchLvl(Glitch.Virtualization, 3))
+	// .custom(() => ns.myrian.getGlitchLvl(Glitch.Virtualization) < 3, async () => await ns.myrian.setGlitchLvl(Glitch.Virtualization, 3))
 	.finish();
 
 export const makeStoreT0 = (ns: NS, item: Component) => new RoutineBuilder(`storeT0: ${item}`)
-	.when(() => getAllDevices(ns, isDeviceISocket, d => d.content.includes(item)).length > 0)
+	.when(
+		() => getAllDevices(ns, isDeviceISocket, d => d.content.includes(item)).length > 0 && 
+		numStored(ns, item) < totalStorageSize(ns) / 3
+	)
 	.possible(() => storageNames.some(storage => ns.myrian.getDevice(storage) !== undefined))
 	.deliver(
 		() => getAllDevices(ns, isDeviceISocket, d => d.content.includes(item)),
@@ -98,6 +103,24 @@ export const makeCharge = (ns: NS) => new RoutineBuilder("charge")
 	.possible(() => ns.myrian.getDevice("batteryA") !== undefined)
 	.energize(() => [getBattery(ns, "batteryA")])
 	.finish();
+
+export function makeRemoveLocks(ns: NS) {
+	const segmentationLocks = () => getAllDevices(ns, isDeviceLock, d => {
+		const match = d.name.match(/^lock-(\d+)-(\d+)$/);
+		if (match === null) return false;
+		return (Number.parseInt(match[1]) === d.x && Number.parseInt(match[2]) === d.y);
+	});
+	return new RoutineBuilder("removeLocks")
+		.when(() => segmentationLocks().length > 0)
+		.while(
+			() => segmentationLocks().length > 0,
+			builder => builder.uninstall(
+				() => segmentationLocks(),
+				ns.myrian.getDevices
+			)
+		)
+		.finish();
+}
 
 export const makeUpgrade = (ns: NS) => new RoutineBuilder("upgrade")
 	.while(bus => bus().maxEnergy < 24, builder => builder.possible(() => ns.myrian.getGlitchLvl(Glitch.Magnetism) > 0).custom(

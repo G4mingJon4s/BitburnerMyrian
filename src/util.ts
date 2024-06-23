@@ -48,10 +48,10 @@ export interface InstallAction {
 	name: string;
 }
 
-// Uninstalls a device
+// Uninstalls the nearest device
 export interface UninstallAction {
 	type: "uninstall";
-	device: (bus: () => Bus) => Device;
+	device: (bus: () => Bus) => Device[];
 	devices: () => Device[];
 }
 

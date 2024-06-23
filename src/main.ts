@@ -1,7 +1,7 @@
 import { NS } from "@ns";
 import { getBus, tierOfComponent } from "./util";
-import { Component } from "./types";
-import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade } from "./routines";
+import { Component, Glitch } from "./types";
+import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade, makeRemoveLocks } from "./routines";
 import { ContentReservation } from "./ContentReservation";
 import { Routine } from "./Routine";
 import { componentRecipes, recipes } from "./recipes";
@@ -11,7 +11,7 @@ export async function main(ns: NS) {
 	ContentReservation.reset();
 
 	ns.myrian.DEUBG_RESET();
-	ns.myrian.DEBUG_GIVE_VULNS(100);
+	// ns.myrian.DEBUG_GIVE_VULNS(1e16);
 
 	ns.disableLog("asleep");
 	ns.clearLog();
@@ -25,6 +25,9 @@ export async function main(ns: NS) {
 	// for (const isocket of getAllDevices(ns, isDeviceISocket, () => true)) {
 	// 	for (let i = 0; i < 50; i++) if(!ns.myrian.upgradeEmissionLvl(isocket.name)) break;
 	// }
+
+	await ns.myrian.setGlitchLvl(Glitch.Segmentation, 2);
+	await ns.myrian.setGlitchLvl(Glitch.Rust, 10);
 
 	// await (async() => {
 	// 	try {
@@ -64,6 +67,7 @@ export async function main(ns: NS) {
 
 	const routines = [
 		makeCharge(ns),
+		makeRemoveLocks(ns),
 		makeSetup(ns),
 		makeUpgrade(ns),
 
