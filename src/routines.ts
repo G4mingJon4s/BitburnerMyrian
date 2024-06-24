@@ -35,6 +35,13 @@ export const makeSetup = (ns: NS) => new RoutineBuilder("setup")
 		reducers["reducerT1"]
 	))
 	.custom(() => ns.myrian.getDevice("reducerT1") !== undefined, async () => await ns.myrian.setGlitchLvl(Glitch.Encryption, 1))
+	.while(() => ns.myrian.getDevice("bob") === undefined, builder => builder.install(
+		ns.myrian.getVulns,
+		ns.myrian.getDevices,
+		"bob",
+		DeviceType.Bus,
+		{ x: 6, y: 9 }
+	))
 	.while(() => ns.myrian.getDevice("batteryA") === undefined, builder => builder.install(
 		ns.myrian.getVulns,
 		ns.myrian.getDevices,
@@ -123,6 +130,7 @@ export function makeRemoveLocks(ns: NS) {
 }
 
 export const makeUpgrade = (ns: NS) => new RoutineBuilder("upgrade")
+	.startPossible(() => ns.myrian.getGlitchLvl(Glitch.Magnetism) > 0) // Start upgrading once batteries and magnetism is set up
 	.while(bus => bus().maxEnergy < 24, builder => builder.possible(() => ns.myrian.getGlitchLvl(Glitch.Magnetism) > 0).custom(
 		bus => ns.myrian.getUpgradeMaxEnergyCost(bus().name) <= ns.myrian.getVulns(),
 		async bus => void ns.myrian.upgradeMaxEnergy(bus().name)

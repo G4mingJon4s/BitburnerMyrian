@@ -41,6 +41,7 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 	}
 
 	let success = false;
+	const alreadyReleased = new Set<number>();
 
 	try {
 		const routingToSource = await routeNextTo(ns, bus, () => fromDevice);
@@ -49,7 +50,10 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 		const pickup = await ns.myrian.transfer(fromDevice.name, bus().name, items);
 		if (!pickup) return { success: false, done: false };
 
-		for (const item of fromReserved) ContentReservation.release(fromDevice.name, item, executor, callStack);
+		for (const item of fromReserved) {
+			ContentReservation.release(fromDevice.name, item, executor, callStack);
+			alreadyReleased.add(item);
+		}
 
 		const routingToDestination = await routeNextTo(ns, bus, () => toDevice);
 		if (!routingToDestination) return { success: false, done: false };
@@ -61,7 +65,7 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 	} finally {
 		if (!success) ns.print(`ERROR: Transfer failed: ${fromDevice.name} => ${toDevice.name}`);
 
-		for (const item of fromReserved) ContentReservation.release(fromDevice.name, item, executor, callStack);
+		for (const item of fromReserved) if (!alreadyReleased.has(item)) ContentReservation.release(fromDevice.name, item, executor, callStack);
 		// toReserved is a list of indices, if any were false, we would have returned early
 		for (const item of toReserved as number[]) ContentReservation.release(toDevice.name, item, executor, callStack);
 	}

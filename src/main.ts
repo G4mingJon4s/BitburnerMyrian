@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { getBus, tierOfComponent } from "./util";
+import { getAllDevices, getBus, isDeviceBus, tierOfComponent } from "./util";
 import { Component, Glitch } from "./types";
 import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade, makeRemoveLocks } from "./routines";
 import { ContentReservation } from "./ContentReservation";
@@ -11,7 +11,7 @@ export async function main(ns: NS) {
 	ContentReservation.reset();
 
 	ns.myrian.DEUBG_RESET();
-	// ns.myrian.DEBUG_GIVE_VULNS(1e16);
+	ns.myrian.DEBUG_GIVE_VULNS(500);
 
 	ns.disableLog("asleep");
 	ns.clearLog();
@@ -108,25 +108,32 @@ export async function main(ns: NS) {
 		].map(item => makeDeliver(ns, recipes[tierOfComponent(item)].find(recipe => recipe.output === item)!, produceRoutines)),
 	]
 
+	const assigned = new Map<string, { routine: Routine, isDone: () => boolean, workflow: Promise<{ success: boolean, done: boolean }> }>();
+
 	while (true) {
 		await ns.asleep(500);
 
-		console.warn("CYCLE");
+		// Remove finished tasks
+		for (const [bus, task] of assigned.entries()) {
+			if (!task.isDone()) continue;
+			assigned.delete(bus);
+		}
 
-		for (const routine of routines) {
-			if (!routine.when(() => getBus(ns, "alice"))) continue;
-			if (!routine.possible(() => getBus(ns, "alice"))) {
-				// console.log(`Routine '${routine.name}' is not possible`);
-				continue;
-			}
-
-		const result = await routine.execute(ns, () => getBus(ns, "alice"));
-		if (!result) console.log(`Routine '${routine.name}' failed`);
-		break;
+		// Assign new tasks
+		for (const bus of getAllDevices(ns, isDeviceBus, () => true)) {
+			if (assigned.has(bus.name)) continue;
+			const busDevice = () => getBus(ns, bus.name);
+			const routine = routines.find(routine => routine.when(busDevice) && routine.possible(busDevice));
+			if (routine === undefined) continue;
+			
+			let isDone = false;
+			assigned.set(bus.name, {
+				routine,
+				isDone: () => isDone,
+				workflow: routine.execute(ns, busDevice, [], () => isDone = true),
+			});
 		}
 	}
 }
 
-// ISSUE: upgrade routine doesnt work (charge upgrade not working)
 // LIMITATION: Can only produce T3 or lower
-// LIMITATION: Only one bus is used

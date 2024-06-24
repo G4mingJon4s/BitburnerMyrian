@@ -88,6 +88,7 @@ export class Routine implements Executable {
 	steps: Task[];
 	currentStep = 0;
 	isRunning = false;
+	isExecuting = false;
 
 	constructor(
 		name: string,
@@ -127,6 +128,7 @@ export class Routine implements Executable {
 
 	// Checks if some step is possible
 	possible(bus: () => Bus, callStack: Executable[] = []): boolean {
+		if (this.isExecuting) return false;
 		if (this.possibleFunc !== null && !this.possibleFunc(bus)) return false;
 
 		if (this.reservations !== null) for (const reservation of this.reservations() ?? []) {
@@ -176,38 +178,42 @@ export class Routine implements Executable {
 	}
 
 	// Executes the highest possible step
-	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = []): Promise<{ success: boolean, done: boolean }> {
-		if (!this.possible(bus, callStack)) return { success: false, done: false };
-		if (this.steps.length === 0) return { success: false, done: false };
-		if (!this.reserve(callStack)) return { success: false, done: false };
-		
-		console.log(`${"-".repeat(callStack.length)}EXECUTING ${this.name}`);
+	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = [], onFinish?: () => void): Promise<{ success: boolean, done: boolean }> {
+		try {
+			if (!this.possible(bus, callStack)) return { success: false, done: false };
+			if (this.steps.length === 0) return { success: false, done: false };
+			if (!this.reserve(callStack)) return { success: false, done: false };
+			
+			console.log(`${"-".repeat(callStack.length)}EXECUTING ${this.name}`);
+			const step = this.steps[this.currentStep]!;
+			this.isRunning = true;
+			this.isExecuting = true;
 
-		const step = this.steps[this.currentStep]!;
-		this.isRunning = true;
-
-		// Only skip the task if it is not running and shouldn't be run due to the while clause
-		if ((!(step.task instanceof Routine) || !step.task.isRunning) && step.while !== null && !step.while(bus)) {
-			const isDone = this.nextStep(callStack);
-			console.log(`${"-".repeat(callStack.length)}FINISHED ${this.name}, while clause not met.`);
-			return { success: true, done: isDone };
-		}
-
-		if (step.task.possible(bus, [...callStack, this])) {
-			const result = await step.task.execute(ns, bus, [...callStack, this]);
-			if (result.success) {
-				console.log(`${"-".repeat(callStack.length)}FINISHED ${this.name}`);
-				let isDone = false;
-				if (result.done && (step.while === null || !step.while(bus))) isDone = this.nextStep(callStack);
-
-				if (isDone) console.log(`${"-".repeat(callStack.length)}DONE ${this.name}`);
-
+			// Only skip the task if it is not running and shouldn't be run due to the while clause
+			if ((!(step.task instanceof Routine) || !step.task.isRunning) && step.while !== null && !step.while(bus)) {
+				const isDone = this.nextStep(callStack);
+				console.log(`${"-".repeat(callStack.length)}SKIPPED ${this.name}`);
 				return { success: true, done: isDone };
 			}
-		}
 
-		console.error("INTERNAL ERROR: Step failed.", step);
-		console.warn("STARTING CLEANUP", this.cleanupRoutine);
-		return await this.cleanup(ns, bus, callStack);
+			if (step.task.possible(bus, [...callStack, this])) {
+				const result = await step.task.execute(ns, bus, [...callStack, this]);
+				if (result.success) {
+					let isDone = false;
+					if (result.done && (step.while === null || !step.while(bus))) isDone = this.nextStep(callStack);
+
+					if (isDone) console.log(`${"-".repeat(callStack.length)}DONE ${this.name}`);
+
+					return { success: true, done: isDone };
+				}
+			}
+
+			console.error("INTERNAL ERROR: Step failed.", step);
+			console.warn("STARTING CLEANUP", this.cleanupRoutine);
+			return await this.cleanup(ns, bus, callStack);
+		} finally {
+			this.isExecuting = false;
+			onFinish?.();
+		}
 	}
 }
