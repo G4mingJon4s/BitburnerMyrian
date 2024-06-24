@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { getAllDevices, getBus, isDeviceBus, tierOfComponent } from "./util";
+import { executePromise, getAllDevices, getBus, isDeviceBus, tierOfComponent } from "./util";
 import { Component, Glitch } from "./types";
 import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade, makeRemoveLocks } from "./routines";
 import { ContentReservation } from "./ContentReservation";
@@ -108,7 +108,7 @@ export async function main(ns: NS) {
 		].map(item => makeDeliver(ns, recipes[tierOfComponent(item)].find(recipe => recipe.output === item)!, produceRoutines)),
 	]
 
-	const assigned = new Map<string, { routine: Routine, isDone: () => boolean, workflow: Promise<{ success: boolean, done: boolean }> }>();
+	const assigned = new Map<string, { isDone: () => boolean, workflow: Promise<void | { success: boolean, done: boolean }> }>();
 
 	while (true) {
 		await ns.asleep(500);
@@ -126,12 +126,7 @@ export async function main(ns: NS) {
 			const routine = routines.find(routine => routine.when(busDevice) && routine.possible(busDevice));
 			if (routine === undefined) continue;
 			
-			let isDone = false;
-			assigned.set(bus.name, {
-				routine,
-				isDone: () => isDone,
-				workflow: routine.execute(ns, busDevice, [], () => isDone = true),
-			});
+			assigned.set(bus.name, executePromise(() => routine.execute(ns, busDevice)));
 		}
 	}
 }

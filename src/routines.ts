@@ -198,10 +198,11 @@ export function makeProduce(ns: NS, recipe: Recipe, produceRoutines: Partial<Rec
 							produceRoutines[item]!
 						)
 					}
-				);
+				).cleanup(b => b.deleteContent(bus => bus()));
 			}
 		)
 		.reduce(() => [getReducer(ns, reducer)], recipe.output)
+		.cleanup(builder => builder.deleteContent(() => getReducer(ns, reducer)))
 		.finish();
 }
 
@@ -221,5 +222,6 @@ export function makeDeliver(ns: NS, recipe: Recipe, produceRoutines: Partial<Rec
 			() => getAllDevices(ns, isDeviceOSocket, d => isRequestingItem(d, recipe.output)),
 			[recipe.output]
 		)
+		.cleanup(builder => builder.deleteContent(() => getReducer(ns, reducer)))
 		.finish();
 }

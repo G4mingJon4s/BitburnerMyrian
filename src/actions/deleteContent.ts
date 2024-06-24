@@ -17,7 +17,7 @@ export const executeDeleteContent: ActionExecutable<DeleteContentAction> = async
 		const routing = await routeNextTo(ns, bus, () => deletedContentDevice);
 		if (!routing) return { success: false, done: false };
 
-		const result = ns.myrian.trashInventory(deletedContentDevice.name);
+		const result = ns.myrian.formatContent(deletedContentDevice.name);
 		return { success: result, done: result };
 	} finally {
 		for (const item of items) ContentReservation.release(device(bus).name, item, executor, callStack);

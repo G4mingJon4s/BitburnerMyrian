@@ -178,7 +178,7 @@ export class Routine implements Executable {
 	}
 
 	// Executes the highest possible step
-	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = [], onFinish?: () => void): Promise<{ success: boolean, done: boolean }> {
+	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = []): Promise<{ success: boolean, done: boolean }> {
 		try {
 			if (!this.possible(bus, callStack)) return { success: false, done: false };
 			if (this.steps.length === 0) return { success: false, done: false };
@@ -213,7 +213,6 @@ export class Routine implements Executable {
 			return await this.cleanup(ns, bus, callStack);
 		} finally {
 			this.isExecuting = false;
-			onFinish?.();
 		}
 	}
 }

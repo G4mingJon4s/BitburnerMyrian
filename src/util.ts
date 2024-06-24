@@ -116,6 +116,22 @@ export const countUp = <T>(array: T[]): Map<T, number> => {
 	return map;
 }
 
+export const executePromise = <T>(func: () => Promise<T>): { isDone: () => boolean, workflow: Promise<void | T> } => {
+	let done = false;
+
+	const workflow = (async () => {
+		try {
+			await func();
+		} catch (e) {
+			console.error("PROMISE ERROR:", e);
+		} finally {
+			done = true;
+		}
+	})();
+
+	return { workflow, isDone: () => done };
+};
+
 export const nearest = <T extends Point>(positions: T[], from: Point): T => positions.reduce((best, current) => distance(from, best) > distance(from, current) ? current : best);
 
 /** Depends on all recipes being taken from the global recipes array, no newly created recipes will work */
