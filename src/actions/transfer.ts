@@ -44,24 +44,35 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 	const alreadyReleased = new Set<number>();
 
 	try {
-		const routingToSource = await routeNextTo(ns, bus, () => fromDevice);
-		if (!routingToSource) return { success: false, done: false };
+		const from = () => ns.myrian.getDevice(fromDevice.name)!;
+		const to = () => ns.myrian.getDevice(toDevice.name)!;
 
-		const pickup = await ns.myrian.transfer(fromDevice.name, bus().name, items);
-		if (!pickup) return { success: false, done: false };
+		let strikes = 0;
+		for (; strikes < 5; strikes++) {
+			const routingToSource = await routeNextTo(ns, bus, from);
+			if (!routingToSource) continue;
+
+			const pickup = await ns.myrian.transfer(fromDevice.name, bus().name, items);
+			if (pickup) break;
+		}
+		if (strikes >= 5) return { success: false, done: false };
 
 		for (const item of fromReserved) {
 			ContentReservation.release(fromDevice.name, item, executor, callStack);
 			alreadyReleased.add(item);
 		}
 
-		const routingToDestination = await routeNextTo(ns, bus, () => toDevice);
-		if (!routingToDestination) return { success: false, done: false };
+		strikes = 0;
+		for (; strikes < 5; strikes++) {
+			const routingToDestination = await routeNextTo(ns, bus, to);
+			if (!routingToDestination) continue;
 
-		success = true;
+			const dropoff = await ns.myrian.transfer(bus().name, toDevice.name, items);
+			if (dropoff) break;
+		}
 
-		const dropoff = await ns.myrian.transfer(bus().name, toDevice.name, items);
-		return { success: dropoff, done: dropoff };
+		success = strikes < 5;
+		return { success, done: success };
 	} finally {
 		if (!success) ns.print(`ERROR: Transfer failed: ${fromDevice.name} => ${toDevice.name}`);
 
