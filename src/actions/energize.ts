@@ -17,7 +17,7 @@ export const executeEnergize: ActionExecutable<EnergizeAction> = async (action, 
 	const battery = nearest(available, bus());
 
 	const routing = await routeNextTo(ns, bus, () => battery);
-	if (!routing) return { error: true, done: false, reason: `ENERGIZE: FAILED TO ROUTE TO ${battery.name}` };
+	if (!routing) return { error: false, done: false };
 
 	const energize = await ns.myrian.energize(bus().name, battery.name);
 	if (energize !== -1) return { error: false, done: true };

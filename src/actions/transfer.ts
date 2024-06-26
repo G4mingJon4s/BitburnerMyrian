@@ -56,7 +56,7 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 			const pickup = await ns.myrian.transfer(fromDevice.name, bus().name, items);
 			if (pickup) break;
 		}
-		if (strikes >= 5) return { error: true, done: false, reason: `TRANSFER: PICKUP FAILED ${fromDevice.name} => ${bus().name}` };
+		if (strikes >= 5) return { error: false, done: false };
 
 		for (const item of fromReserved) {
 			ContentReservation.release(fromDevice.name, item, executor, callStack);
@@ -73,10 +73,10 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 		}
 
 		success = strikes < 5;
-		if (success) return { error: false, done: true };
+		if (success || bus().content.length === 0) return { error: false, done: true };
 		return { error: true, done: false, reason: `TRANSFER: DROPOFF FAILED ${bus().name} => ${toDevice.name}` };
 	} finally {
-		if (!success) ns.print(`ERROR: Transfer failed: ${fromDevice.name} => ${toDevice.name}`);
+		if (!success) console.error(`TRANSFER ERROR: Transfer failed: ${fromDevice.name} => ${toDevice.name}`);
 
 		for (const item of fromReserved) if (!alreadyReleased.has(item)) ContentReservation.release(fromDevice.name, item, executor, callStack);
 		// toReserved is a list of indices, if any were false, we would have returned early

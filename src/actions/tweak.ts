@@ -18,7 +18,7 @@ export const executeTweak: ActionExecutable<TweakAction> = async (action, ns, bu
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => isocket);
-		if (!routing) return { error: true, done: false, reason: `TWEAK: FAILED TO ROUTE TO ${isocket.name}` };
+		if (!routing) return { error: false, done: false };
 
 		const tweak = await ns.myrian.tweakISocket(bus().name, isocket.name, item);
 		if (tweak) return { error: false, done: true };

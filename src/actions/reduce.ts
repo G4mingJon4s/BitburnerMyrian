@@ -30,7 +30,7 @@ export const executeReduce: ActionExecutable<ReduceAction> = async (action, ns, 
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => reducer);
-		if (!routing) return { error: true, done: false, reason: `REDUCE: FAILED TO ROUTE TO ${reducer.name}` };
+		if (!routing) return { error: false, done: false };
 
 		const reduce = await ns.myrian.reduce(bus().name, reducer.name);
 		if (reduce) return { error: false, done: true };

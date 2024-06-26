@@ -21,7 +21,7 @@ export const executeUninstall: ActionExecutable<UninstallAction> = async (action
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => removedDevice);
-		if (!routing) return { error: true, done: false, reason: `UNINSTALL: FAILED TO ROUTE TO ${removedDevice.name}` };
+		if (!routing) return { error: false, done: false };
 
 		const uninstall = await ns.myrian.uninstallDevice(bus().name, [removedDevice.x, removedDevice.y]);
 		if (uninstall) return { error: false, done: true };

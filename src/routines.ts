@@ -103,6 +103,7 @@ export const makeStoreT0 = (ns: NS, item: Component) => new RoutineBuilder(`stor
 		() => storageNames.filter(storage => ns.myrian.getDevice(storage) !== undefined).map(storage => getCache(ns, storage)),
 		[item]
 	)
+	.cleanup(builder => builder.deleteContent(bus => bus()))
 	.finish();
 
 export const makeCharge = (ns: NS) => new RoutineBuilder("charge")
@@ -187,15 +188,19 @@ export function makeProduce(ns: NS, recipe: Recipe, produceRoutines: Partial<Rec
 				const subReducer = reducerOfItem(item);
 				return builder.while(
 					() => count > (countUp(getReducer(ns, reducer).content).get(item) ?? 0),
-					builder => {
-						if ([Component.R0, Component.G0, Component.B0].includes(item)) return builder.deliver(
+					b => {
+						if ([Component.R0, Component.G0, Component.B0].includes(item)) return b.deliver(
 							() => getItemSources(ns, item, storageNames),
 							() => [getReducer(ns, reducer)],
 							[item]
 						);
-						return builder.while(
+						return b.while(
 							() => !getReducer(ns, subReducer!).content.includes(item),
 							produceRoutines[item]!
+						).deliver(
+							() => [getReducer(ns, subReducer!)],
+							() => [getReducer(ns, reducer)],
+							[item]
 						)
 					}
 				).cleanup(b => b.deleteContent(bus => bus()));

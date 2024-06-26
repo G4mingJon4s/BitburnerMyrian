@@ -272,7 +272,7 @@ export async function routeTo(ns: NS, bus: () => Bus, destination: Point, maxTri
 		strikes++;
 	}
 
-	ns.print(`ERROR: Could not route bus to (${destination.x.toString().padStart(2, "0")} | ${destination.y.toString().padStart(2, "0")}) within ${maxTries} tries`);
+	console.warn(`ROUTING ERROR: Could not route bus to (${destination.x.toString().padStart(2, "0")} | ${destination.y.toString().padStart(2, "0")}) within ${maxTries} tries`);
 	return false;
 }
 
@@ -305,7 +305,7 @@ export async function routeNextTo(ns: NS, bus: () => Bus, device: () => Point, m
 		strikes++;
 	}
 
-	ns.print(`ERROR: Could not route bus next to (${device().x.toString().padStart(2, "0")} | ${device().y.toString().padStart(2, "0")}) within ${maxTries} tries`);
+	console.warn(`ROUTING ERROR: Could not route bus next to (${device().x.toString().padStart(2, "0")} | ${device().y.toString().padStart(2, "0")}) within ${maxTries} tries`);
 	return false;
 }
 
