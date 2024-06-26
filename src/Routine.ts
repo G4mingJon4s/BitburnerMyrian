@@ -106,6 +106,8 @@ export class Routine implements Executable {
 		this.cleanupRoutine = cleanup;
 		this.reservations = reservations;
 		this.steps = steps;
+
+		if (this.steps.length === 0) throw new Error(`Internal error: Routine ${this.name} has no steps.`);
 	}
 
 	private nextStep(callStack: Executable[]) {
@@ -181,7 +183,6 @@ export class Routine implements Executable {
 	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = []): Promise<{ success: boolean, done: boolean }> {
 		try {
 			if (!this.possible(bus, callStack)) return { success: false, done: false };
-			if (this.steps.length === 0) return { success: false, done: false };
 			if (!this.reserve(callStack)) return { success: false, done: false };
 			
 			console.log(`${"-".repeat(callStack.length)}EXECUTING ${this.name}`);
