@@ -21,7 +21,7 @@ export const executeReduce: ActionExecutable<ReduceAction> = async (action, ns, 
 	const recipeTier = tierOfRecipe(recipeWanted);
 
 	const reducers = device(bus);
-	const available = reducers.filter(reducer => reducer.tier === recipeTier && inventoryIncludes(reducer.content, recipeWanted.input));
+	const available = reducers.filter(reducer => reducer.tier === recipeTier && inventoryIncludes(reducer.content, recipeWanted.input, ContentReservation.getUnobtainable(reducer.name, executor, callStack)));
 	if (available.length === 0) return { success: false, done: false };
 	const reducer = nearest(available, bus());
 
