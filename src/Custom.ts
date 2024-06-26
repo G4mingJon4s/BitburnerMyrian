@@ -1,6 +1,6 @@
 import { NS } from "@ns";
 import { Bus } from "./types";
-import { Executable } from "./util";
+import { Executable, ExecutableResult } from "./util";
 
 export class Custom implements Executable {
 	possibleFunc: ((bus: () => Bus) => boolean);
@@ -15,12 +15,12 @@ export class Custom implements Executable {
 		return this.possibleFunc(bus);
 	}
 
-	async execute(__ns: NS, bus: () => Bus): Promise<{ success: boolean, done: boolean }> {
+	async execute(ns: NS, bus: () => Bus): Promise<ExecutableResult> {
 		try {
 			await this.callbackFunc(bus);
-			return { success: true, done: true };
+			return { error: false, done: true };
 		} catch (e) {
-			return { success: false, done: false };
+			return { error: false, done: false };
 		}
 	}
 }

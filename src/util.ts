@@ -125,9 +125,9 @@ export const executePromise = <T>(func: () => Promise<T>): { isDone: () => boole
 
 	const workflow = (async () => {
 		try {
-			await func();
+			return await func();
 		} catch (e) {
-			console.error("PROMISE ERROR:", e);
+			return console.error("PROMISE ERROR:", e);
 		} finally {
 			done = true;
 		}
