@@ -14,14 +14,15 @@ export const executeTweak: ActionExecutable<TweakAction> = async (action, ns, bu
 	const isocket = device(bus);
 
 	const items = ContentReservation.reserveAll(isocket.name, isocket.content, isocket.content, executor, callStack);
-	if (!items) return { success: false, done: false };
+	if (!items) return { error: false, done: false };
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => isocket);
-		if (!routing) return { success: false, done: false };
+		if (!routing) return { error: true, done: false, reason: `TWEAK: FAILED TO ROUTE TO ${isocket.name}` };
 
 		const tweak = await ns.myrian.tweakISocket(bus().name, isocket.name, item);
-		return { success: tweak, done: tweak };
+		if (tweak) return { error: false, done: true };
+		return { error: true, done: false, reason: `TWEAK: FAILED TO TWEAK ${isocket.name}` };
 	} finally {
 		for (const item of items) ContentReservation.release(isocket.name, item, executor, callStack);
 	}

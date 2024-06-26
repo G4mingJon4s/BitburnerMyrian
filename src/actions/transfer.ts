@@ -24,21 +24,21 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 	const toDevices = to(bus);
 
 	const fromAvailable = fromDevices.filter(container => inventoryIncludes(container.content, items, ContentReservation.getUnobtainable(container.name, executor, callStack)));
-	if (fromAvailable.length === 0) return { success: false, done: false };
+	if (fromAvailable.length === 0) return { error: false, done: false };
 	const fromDevice = nearest(fromAvailable, bus());
 
 	const toAvailable = toDevices.filter(container => inventoryFreeSpace(container.content, container.maxContent, ContentReservation.getUnobtainable(container.name, executor, callStack)) >= items.length);
-	if (toAvailable.length === 0) return { success: false, done: false };
+	if (toAvailable.length === 0) return { error: false, done: false };
 	const toDevice = nearest(toAvailable, bus());
 
 	const fromReserved = ContentReservation.reserveAll(fromDevice.name, fromDevice.content, items, executor, callStack);
-	if (!fromReserved) return { success: false, done: false };
+	if (!fromReserved) return { error: false, done: false };
 
 	const toReserved = items.map(() => ContentReservation.reserveFreeSpace(toDevice.name, toDevice.content, toDevice.maxContent, executor, callStack));
 	if (toReserved.some(r => r === false)) {
 		for (const item of fromReserved) ContentReservation.release(fromDevice.name, item, executor, callStack);
 		for (const index of toReserved) if (index !== false) ContentReservation.release(toDevice.name, index, executor, callStack);
-		return { success: false, done: false };
+		return { error: false, done: false };
 	}
 
 	let success = false;
@@ -56,7 +56,7 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 			const pickup = await ns.myrian.transfer(fromDevice.name, bus().name, items);
 			if (pickup) break;
 		}
-		if (strikes >= 5) return { success: false, done: false };
+		if (strikes >= 5) return { error: true, done: false, reason: `TRANSFER: PICKUP FAILED ${fromDevice.name} => ${bus().name}` };
 
 		for (const item of fromReserved) {
 			ContentReservation.release(fromDevice.name, item, executor, callStack);
@@ -73,7 +73,8 @@ export const executeTransfer: ActionExecutable<TransferAction> = async (action, 
 		}
 
 		success = strikes < 5;
-		return { success, done: success };
+		if (success) return { error: false, done: true };
+		return { error: true, done: false, reason: `TRANSFER: DROPOFF FAILED ${bus().name} => ${toDevice.name}` };
 	} finally {
 		if (!success) ns.print(`ERROR: Transfer failed: ${fromDevice.name} => ${toDevice.name}`);
 

@@ -15,8 +15,12 @@ export interface Node {
 
 export interface Executable {
 	possible(bus: () => Bus, callStack: Executable[]): boolean;
-	execute(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<{ success: boolean, done: boolean }>;
+	execute(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<ExecutableResult>;
 }
+
+export type ExecutableResult = {
+	done: boolean;
+} & ({ error: true, reason: string } | { error: false });
 
 export interface Task {
 	task: Executable;
@@ -76,7 +80,7 @@ export interface DeleteContentAction {
 
 export type Action = TransferAction | ReduceAction | InstallAction | UninstallAction | EnergizeAction | TweakAction | DeleteContentAction;
 export type ActionAvailable<T extends Action> = (action: T, bus: () => Bus, executor: Executable, callStack: Executable[]) => boolean;
-export type ActionExecutable<T extends Action> = (action: T, ns: NS, bus: () => Bus, executor: Executable, callStack: Executable[]) => Promise<{ success: boolean, done: boolean }>;
+export type ActionExecutable<T extends Action> = (action: T, ns: NS, bus: () => Bus, executor: Executable, callStack: Executable[]) => Promise<ExecutableResult>;
 
 export const isDeviceContainer = (device: BaseDevice): device is ContainerDevice => "content" in device;
 export const isDeviceBus = (d: Device): d is Bus => d.type === DeviceType.Bus;

@@ -1,5 +1,5 @@
 import { NS } from "@ns";
-import { executePromise, getAllDevices, getBus, isDeviceBus, tierOfComponent } from "./util";
+import { ExecutableResult, executePromise, getAllDevices, getBus, isDeviceBus, tierOfComponent } from "./util";
 import { Component, Glitch } from "./types";
 import { makeAll, makeCharge, makeDeliverT0, makeProduce, makeDeliver, makeSetup, makeStoreT0, makeUpgrade, makeRemoveLocks } from "./routines";
 import { ContentReservation } from "./ContentReservation";
@@ -17,31 +17,7 @@ export async function main(ns: NS) {
 	ns.clearLog();
 	ns.tail();
 
-	// QoL
-	// for (let i = 0; i < 16; i++) ns.myrian.upgradeInstallLvl("alice");
-	// for (let i = 0; i < 16; i++) ns.myrian.upgradeMoveLvl("alice");
-	// for (let i = 0; i < 16; i++) ns.myrian.upgradeReduceLvl("alice");
-	// for (let i = 0; i < 16; i++) ns.myrian.upgradeTransferLvl("alice");
-	// for (const isocket of getAllDevices(ns, isDeviceISocket, () => true)) {
-	// 	for (let i = 0; i < 50; i++) if(!ns.myrian.upgradeEmissionLvl(isocket.name)) break;
-	// }
-
-	await ns.myrian.setGlitchLvl(Glitch.Segmentation, 2);
-
-	// await (async() => {
-	// 	try {
-	// 		console.log("Setting encryption to 3")
-	// 		await ns.myrian.setGlitchLvl(Glitch.Encryption, 3);
-	// 		console.log("Setting jamming to 3")
-	// 		await ns.myrian.setGlitchLvl(Glitch.Jamming, 3);
-	// 		console.log("Setting isolation to 3")
-	// 		await ns.myrian.setGlitchLvl(Glitch.Isolation, 3);
-	// 		console.log("Setting friction to 3")
-	// 		await ns.myrian.setGlitchLvl(Glitch.Friction, 3);
-	// 	} catch (e) {
-	// 		console.error("Could not set glith levels", e);
-	// 	}
-	// })()
+	void ns.myrian.setGlitchLvl(Glitch.Roaming, 10);
 
 	const t1ProduceRoutines: Partial<Record<Component, Routine>> = makeAll(
 		([Component.R1, Component.G1, Component.B1, Component.Y1, Component.C1, Component.M1] as const).values(),
@@ -108,7 +84,7 @@ export async function main(ns: NS) {
 		].map(item => makeDeliver(ns, recipes[tierOfComponent(item)].find(recipe => recipe.output === item)!, produceRoutines)),
 	]
 
-	const assigned = new Map<string, { isDone: () => boolean, workflow: Promise<void | { success: boolean, done: boolean }> }>();
+	const assigned = new Map<string, { isDone: () => boolean, workflow: Promise<void | ExecutableResult> }>();
 
 	while (true) {
 		await ns.asleep(500);
@@ -130,5 +106,3 @@ export async function main(ns: NS) {
 		}
 	}
 }
-
-// LIMITATION: Can only produce T3 or lower

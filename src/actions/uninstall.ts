@@ -17,14 +17,15 @@ export const executeUninstall: ActionExecutable<UninstallAction> = async (action
 	const removedDevice = nearest(device(bus), bus());
 
 	const content = isDeviceContainer(removedDevice) ? ContentReservation.reserveAll(removedDevice.name, removedDevice.content, removedDevice.content, executor, callStack) : [];
-	if (!content) return { success: false, done: false };
+	if (!content) return { error: false, done: false };
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => removedDevice);
-		if (!routing) return { success: false, done: false };
+		if (!routing) return { error: true, done: false, reason: `UNINSTALL: FAILED TO ROUTE TO ${removedDevice.name}` };
 
 		const uninstall = await ns.myrian.uninstallDevice(bus().name, [removedDevice.x, removedDevice.y]);
-		return { success: uninstall, done: uninstall };
+		if (uninstall) return { error: false, done: true };
+		return { error: true, done: false, reason: `UNINSTALL: FAILED TO UNINSTALL ${removedDevice.name}` };
 	} finally {
 		for (const item of content) ContentReservation.release(removedDevice.name, item, executor, callStack);
 	}

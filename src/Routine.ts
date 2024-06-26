@@ -65,7 +65,7 @@ deliverW2 = Factory.when(...).if(noW2Available, produceW2).deliver(() => device,
 */
 
 import { NS } from "@ns";
-import { Executable, Task } from "./util";
+import { Executable, ExecutableResult, Task } from "./util";
 import { Bus } from "./types";
 import { ContentReservation } from "./ContentReservation";
 
@@ -148,15 +148,16 @@ export class Routine implements Executable {
 		return step.task.possible(bus, [...callStack, this]);
 	}
 
-	async cleanup(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<{ success: boolean, done: boolean }> {
+	async cleanup(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<ExecutableResult> {
+		if (this.cleanupRoutine === null) console.warn(`NO CLEANUP ROUTINE FOR ${this.name}`);
 		const cleanupResult = await this.cleanupRoutine?.execute(ns, bus, [...callStack, this]);
-		if (cleanupResult !== undefined && !cleanupResult.success) throw new Error(`Cleanup routine for '${this.name}' failed.`);
+		if (cleanupResult !== undefined && cleanupResult.error) throw new Error(`Cleanup routine for '${this.name}' failed.`);
 		
 		// Reset the state of the routine, the user is expected to make sure this won't result in errors
 		this.isRunning = false;
 		this.currentStep = 0;
 
-		return { success: false, done: false };
+		return { error: false, done: false };
 	}
 
 	private reserve(callStack: Executable[]): boolean {
@@ -180,10 +181,10 @@ export class Routine implements Executable {
 	}
 
 	// Executes the highest possible step
-	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = []): Promise<{ success: boolean, done: boolean }> {
+	async execute(ns: NS, bus: () => Bus, callStack: Executable[] = []): Promise<ExecutableResult> {
 		try {
-			if (!this.possible(bus, callStack)) return { success: false, done: false };
-			if (!this.reserve(callStack)) return { success: false, done: false };
+			if (!this.possible(bus, callStack)) return { error: false, done: false };
+			if (!this.reserve(callStack)) return { error: false, done: false };
 			
 			console.log(`${"-".repeat(callStack.length)}EXECUTING ${this.name}`);
 			const step = this.steps[this.currentStep]!;
@@ -194,23 +195,23 @@ export class Routine implements Executable {
 			if ((!(step.task instanceof Routine) || !step.task.isRunning) && step.while !== null && !step.while(bus)) {
 				const isDone = this.nextStep(callStack);
 				console.log(`${"-".repeat(callStack.length)}SKIPPED ${this.name}`);
-				return { success: true, done: isDone };
+				return { error: false, done: isDone };
 			}
 
 			if (step.task.possible(bus, [...callStack, this])) {
 				const result = await step.task.execute(ns, bus, [...callStack, this]);
-				if (result.success) {
+				if (!result.error) {
 					let isDone = false;
 					if (result.done && (step.while === null || !step.while(bus))) isDone = this.nextStep(callStack);
 
 					if (isDone) console.log(`${"-".repeat(callStack.length)}DONE ${this.name}`);
 
-					return { success: true, done: isDone };
+					return { error: false, done: isDone };
 				}
+				console.error("EXECUTION ERROR: ", result.reason);
 			}
 
-			console.error("INTERNAL ERROR: Step failed.", step);
-			console.warn("STARTING CLEANUP", this.cleanupRoutine);
+			console.error("ROUTINE ERROR: Step failed.", step);
 			return await this.cleanup(ns, bus, callStack);
 		} finally {
 			this.isExecuting = false;

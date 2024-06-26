@@ -1,6 +1,6 @@
 import { NS } from "@ns";
 import { Bus } from "./types";
-import { Action, Executable } from "./util";
+import { Action, Executable, ExecutableResult } from "./util";
 import { canDoTransfer, executeTransfer } from "./actions/transfer";
 import { canDoReduce, executeReduce } from "./actions/reduce";
 import { canDoInstall, executeInstall } from "./actions/install";
@@ -29,8 +29,8 @@ export class Job implements Executable {
 		throw new Error(`Unhandled action type: ${this.action.type}`);
 	}
 
-	async execute(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<{ success: boolean, done: boolean }> {
-		if (!this.possible(bus, callStack)) return { success: false, done: false };
+	async execute(ns: NS, bus: () => Bus, callStack: Executable[]): Promise<ExecutableResult> {
+		if (!this.possible(bus, callStack)) return { error: false, done: false };
 
 		if (this.action.type === "transfer") return await executeTransfer(this.action, ns, bus, this, callStack);
 		if (this.action.type === "reduce") return await executeReduce(this.action, ns, bus, this, callStack);

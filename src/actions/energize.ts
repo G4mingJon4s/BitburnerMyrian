@@ -13,12 +13,13 @@ export const executeEnergize: ActionExecutable<EnergizeAction> = async (action, 
 	const { device } = action;
 	const batteries = device(bus);
 	const available = batteries.filter(battery => battery.energy > 0);
-	if (available.length === 0) return { success: false, done: false };
+	if (available.length === 0) return { error: false, done: false };
 	const battery = nearest(available, bus());
 
 	const routing = await routeNextTo(ns, bus, () => battery);
-	if (!routing) return { success: false, done: false };
+	if (!routing) return { error: true, done: false, reason: `ENERGIZE: FAILED TO ROUTE TO ${battery.name}` };
 
 	const energize = await ns.myrian.energize(bus().name, battery.name);
-	return { success: energize !== -1, done: energize !== -1 };
+	if (energize !== -1) return { error: false, done: true };
+	return { error: true, done: false, reason: `ENERGIZE: FAILED TO ENERGIZE ${bus().name}` };
 }

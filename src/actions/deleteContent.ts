@@ -1,5 +1,5 @@
 import { ContentReservation } from "/ContentReservation";
-import { ActionAvailable, ActionExecutable, DeleteContentAction, routeNextTo } from "/util";
+import { ActionAvailable, ActionExecutable, DeleteContentAction } from "/util";
 
 export const canDoDeleteContent: ActionAvailable<DeleteContentAction> = (action, bus, executor, callStack) => {
 	const { device } = action;
@@ -11,14 +11,12 @@ export const executeDeleteContent: ActionExecutable<DeleteContentAction> = async
 	const deletedContentDevice = device(bus);
 
 	const items = ContentReservation.reserveAll(deletedContentDevice.name, deletedContentDevice.content, deletedContentDevice.content, executor, callStack);
-	if (!items) return { success: false, done: false };
+	if (!items) return { error: false, done: false };
 
 	try {
-		const routing = await routeNextTo(ns, bus, () => deletedContentDevice);
-		if (!routing) return { success: false, done: false };
-
 		const result = ns.myrian.formatContent(deletedContentDevice.name);
-		return { success: result, done: result };
+		if (result) return { error: false, done: true };
+		return { error: true, done: false, reason: `DELETE: FAILED TO DELETE CONTENT OF ${deletedContentDevice.name}` };
 	} finally {
 		for (const item of items) ContentReservation.release(device(bus).name, item, executor, callStack);
 	}

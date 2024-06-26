@@ -15,8 +15,9 @@ export const executeInstall: ActionExecutable<InstallAction> = async (action, ns
 	const { deviceType, position, name } = action;
 
 	const routing = await routeNextTo(ns, bus, () => position);
-	if (!routing) return { success: false, done: false };
+	if (!routing) return { error: true, done: false, reason: `INSTALL: FAILED TO ROUTE TO ${position.x.toString().padStart(2, "0")} | ${position.y.toString().padStart(2, "0")}` };
 
 	const install = await ns.myrian.installDevice(bus().name, name, [position.x, position.y], deviceType);
-	return { success: install, done: install };
+	if (install) return { error: false, done: true };
+	return { error: true, done: false, reason: `INSTALL: FAILED TO INSTALL ${name}` };
 }

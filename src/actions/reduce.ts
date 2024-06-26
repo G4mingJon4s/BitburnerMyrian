@@ -17,23 +17,24 @@ export const executeReduce: ActionExecutable<ReduceAction> = async (action, ns, 
 	const { device, item } = action;
 	
 	const recipeWanted = recipes.flat().find(recipe => recipe.output === item);
-	if (recipeWanted === undefined) return { success: false, done: false };
+	if (recipeWanted === undefined) return { error: false, done: false };
 	const recipeTier = tierOfRecipe(recipeWanted);
 
 	const reducers = device(bus);
 	const available = reducers.filter(reducer => reducer.tier === recipeTier && inventoryIncludes(reducer.content, recipeWanted.input, ContentReservation.getUnobtainable(reducer.name, executor, callStack)));
-	if (available.length === 0) return { success: false, done: false };
+	if (available.length === 0) return { error: false, done: false };
 	const reducer = nearest(available, bus());
 
 	const recipeReserved = ContentReservation.reserveAll(reducer.name, reducer.content, recipeWanted.input, executor, callStack);
-	if (!recipeReserved) return { success: false, done: false };
+	if (!recipeReserved) return { error: false, done: false };
 
 	try {
 		const routing = await routeNextTo(ns, bus, () => reducer);
-		if (!routing) return { success: false, done: false };
+		if (!routing) return { error: true, done: false, reason: `REDUCE: FAILED TO ROUTE TO ${reducer.name}` };
 
 		const reduce = await ns.myrian.reduce(bus().name, reducer.name);
-		return { success: reduce, done: reduce };
+		if (reduce) return { error: false, done: true };
+		return { error: true, done: false, reason: `REDUCE: FAILED TO REDUCE ${reducer.name}` };
 	} finally {
 		for (const item of recipeReserved) ContentReservation.release(reducer.name, item, executor, callStack);
 	}
