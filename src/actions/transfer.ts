@@ -10,10 +10,11 @@ export const canDoTransfer: ActionAvailable<TransferAction> = (action, bus, exec
 	if (!busEnoughSpace) return false;
 
 	return fromDevices.some(fromDevice => toDevices.some(toDevice => {
-		const toEnoughSpace = toDevice.maxContent - toDevice.content.length >= items.length;
-		if (!toEnoughSpace) return false;
+		const itemsAvailable = inventoryIncludes(fromDevice.content, items, ContentReservation.getUnobtainable(fromDevice.name, executor, callStack));
+		if (!itemsAvailable) return false;
 
-		return inventoryIncludes(fromDevice.content, items, ContentReservation.getUnobtainable(fromDevice.name, executor, callStack));
+		const spaceAvailable = inventoryFreeSpace(toDevice.content, toDevice.maxContent, ContentReservation.getUnobtainable(toDevice.name, executor, callStack)) >= items.length;
+		return spaceAvailable;
 	}));
 }
 
